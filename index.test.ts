@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
-import { it } from "node:test";
-import arglet from "./index.ts";
+import { expect, it } from "vitest";
+import arglet from "./index";
 
 it("returns identical config when no args provided", () => {
   const baseConfig = {
@@ -11,51 +10,51 @@ it("returns identical config when no args provided", () => {
   };
 
   const result = arglet(baseConfig, []);
-  assert.deepEqual(result, baseConfig);
+  expect(result).toEqual(baseConfig);
 });
 
 it("parses --key=value format", () => {
   const result = arglet({ port: "3000" }, ["--port=8080"]);
-  assert.equal(result.port, "8080");
+  expect(result.port).toBe("8080");
 });
 
 it("parses --key value format", () => {
   const result = arglet({ port: "3000" }, ["--port", "9000"]);
-  assert.equal(result.port, "9000");
+  expect(result.port).toBe("9000");
 });
 
 it("boolean flag without value enables it", () => {
   const result = arglet({ debug: false }, ["--debug"]);
-  assert.equal(result.debug, true);
+  expect(result.debug).toBe(true);
 });
 
 it("--no-flag disables boolean flag", () => {
   const result = arglet({ debug: true }, ["--no-debug"]);
-  assert.equal(result.debug, false);
+  expect(result.debug).toBe(false);
 });
 
 it("throws when --no- used on non-boolean field", () => {
-  assert.throws(() => {
+  expect(() => {
     arglet({ port: "3000" }, ["--no-port"]);
-  }, /only valid for boolean/i);
+  }).toThrow(/only valid for boolean/i);
 });
 
 it("throws when missing value for non-boolean", () => {
-  assert.throws(() => {
+  expect(() => {
     arglet({ port: "3000" }, ["--port"]);
-  }, /requires a value/i);
+  }).toThrow(/requires a value/i);
 });
 
 it("supports nested dot notation", () => {
   const result = arglet({ server: { port: "3000" } }, ["--server.port=8080"]);
 
-  assert.equal(result.server.port, "8080");
+  expect(result.server.port).toBe("8080");
 });
 
 it("parses arrays using default separator", () => {
   const result = arglet({ tags: [] as string[] }, ["--tags=a,b,c"]);
 
-  assert.deepEqual(result.tags, ["a", "b", "c"]);
+  expect(result.tags).toEqual(["a", "b", "c"]);
 });
 
 it("respects custom array separator", () => {
@@ -63,12 +62,12 @@ it("respects custom array separator", () => {
     arraySeparator: "|",
   });
 
-  assert.deepEqual(result.tags, ["a", "b", "c"]);
+  expect(result.tags).toEqual(["a", "b", "c"]);
 });
 
 it("ignores unknown flags", () => {
   const result = arglet({ foo: "bar" }, ["--unknown=123"]);
-  assert.deepEqual(result, { foo: "bar" });
+  expect(result).toEqual({ foo: "bar" });
 });
 
 it("uses process.argv when args not provided", () => {
@@ -77,7 +76,7 @@ it("uses process.argv when args not provided", () => {
 
   const result = arglet({ port: "3000" });
 
-  assert.equal(result.port, "7777");
+  expect(result.port).toBe("7777");
 
   process.argv = originalArgv;
 });
@@ -86,14 +85,14 @@ it("structuredClone prevents mutation", () => {
   const original = { port: "3000" };
   const result = arglet(original, ["--port=9999"]);
 
-  assert.equal(original.port, "3000");
-  assert.equal(result.port, "9999");
-  assert.notStrictEqual(original, result);
+  expect(original.port).toBe("3000");
+  expect(result.port).toBe("9999");
+  expect(result).not.toBe(original);
 });
 
 it("debug option true triggers logger branch", () => {
   const result = arglet({ debug: false }, [], { debug: true });
-  assert.deepEqual(result, { debug: false });
+  expect(result).toEqual({ debug: false });
 });
 
 it("process.env.DEBUG enables debug branch", () => {
@@ -101,18 +100,18 @@ it("process.env.DEBUG enables debug branch", () => {
   process.env.DEBUG = "1";
 
   const result = arglet({ foo: "bar" }, []);
-  assert.deepEqual(result, { foo: "bar" });
+  expect(result).toEqual({ foo: "bar" });
 
   process.env.DEBUG = original;
 });
 
 it("covers undefined flagName branch", () => {
   const result = arglet({ a: "b" }, ["--"]);
-  assert.deepEqual(result, { a: "b" });
+  expect(result).toEqual({ a: "b" });
 });
 
 it("covers options-only overload branch", () => {
   const result = arglet({ port: "3000" }, { debug: true, arraySeparator: "|" });
 
-  assert.equal(result.port, "3000");
+  expect(result.port).toBe("3000");
 });

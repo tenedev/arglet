@@ -40,7 +40,7 @@
   },
   "scripts": {
     "prepare": "husky",
-    "test": "pnpm type-check && node --test --experimental-test-coverage",
+    "test": "pnpm type-check && vitest run --coverage",
     "type-check": "tsc --noEmit",
     "build": "tsdown",
     "release": "release-hub",
@@ -54,10 +54,12 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.0",
     "@types/node": "^25.0.3",
+    "@vitest/coverage-v8": "4.0.18",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
     "release-hub": "1.0.0-beta.1",
     "tsdown": "0.20.3",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.0.18"
   }
 }
