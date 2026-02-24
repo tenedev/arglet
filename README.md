@@ -7,6 +7,7 @@ _A tiny helper that lets your CLI args lead_
 </div>
 
 [![ci](https://github.com/teneplaysofficial/arglet/actions/workflows/ci.yml/badge.svg)](https://github.com/teneplaysofficial/arglet)
+[![codecov](https://codecov.io/gh/teneplaysofficial/arglet/graph/badge.svg?token=jPMx4VQVBo)](https://codecov.io/gh/teneplaysofficial/arglet)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/teneplaysofficial/arglet/main.svg)](https://results.pre-commit.ci/latest/github/teneplaysofficial/arglet/main)
 
 ## Overview
@@ -18,7 +19,11 @@ _A tiny helper that lets your CLI args lead_
 - 🌱 lightweight and dependency-free
 - 🧠 predictable and easy to reason about
 - ✨ TypeScript-first with great IntelliSense
+- 🔒 schema-driven and type-respecting
 - 🔧 parser-agnostic
+
+Arglet uses your configuration object as the source of truth.
+Only keys defined in that object are allowed, and values are parsed according to their existing type.
 
 ## Installation
 
@@ -85,10 +90,28 @@ Result:
 ```ts
 {
   name: "tene",
-  age: "25",
+  age: 25,
   debug: true
 }
 ```
+
+> Arglet respects the type defined in your config.
+> Since `age` is a number in the schema, `"25"` is automatically cast to `25`.
+
+### Type behavior (schema-driven parsing)
+
+Arglet parses values strictly based on the type in your configuration object.
+
+| Schema Type | CLI Input     | Result Type |
+| ----------- | ------------- | ----------- |
+| `boolean`   | `--flag`      | `true`      |
+| `boolean`   | `--no-flag`   | `false`     |
+| `number`    | `--port=8080` | `number`    |
+| `string`    | `--port=8080` | `"8080"`    |
+| `string[]`  | `--tags=a,b`  | `string[]`  |
+| `number[]`  | `--ids=1,2,3` | `number[]`  |
+
+If the type is `undefined` or `null`, Arglet preserves the raw string value.
 
 ### Boolean flags
 
@@ -115,7 +138,7 @@ Non-boolean options **must** receive a value.
 
 ```ts
 const config = arglet({
-  port: "3000",
+  port: 3000,
 });
 ```
 
@@ -125,15 +148,51 @@ const config = arglet({
 --port=8080
 ```
 
+If a value cannot be parsed according to the schema type, Arglet throws an error.
+
+Example:
+
+```bash
+--port hello
+```
+
+❌ Throws:
+
+```
+--port expects a number
+```
+
 ### Array values
 
 Provide multiple values using a separator (`,` by default).
 
 ```ts
 const config = arglet({
-  ids: [],
+  ids: [] as number[],
 });
 ```
+
+```bash
+--ids=1,2,3
+```
+
+Result:
+
+```ts
+{
+  ids: [1, 2, 3];
+}
+```
+
+If your schema is:
+
+```ts
+const config = arglet({
+  ids: [] as string[],
+});
+```
+
+Then:
 
 ```bash
 --ids=1,2,3
@@ -165,7 +224,7 @@ Arglet supports deep configuration using dot paths.
 const config = arglet({
   server: {
     host: "localhost",
-    port: "3000",
+    port: 3000,
   },
 });
 ```
@@ -174,9 +233,23 @@ const config = arglet({
 --server.host=0.0.0.0 --server.port=8080
 ```
 
+Arglet will update nested properties while preserving types.
+
+Only existing paths are allowed — unknown nested keys are ignored.
+
+### Unknown flags
+
+Flags that do not exist in your configuration object are ignored.
+
+```bash
+--unknown
+```
+
+Ignored (unless debug mode is enabled).
+
 ### Custom arguments (testing & programmatic use)
 
-You can pass arguments directly (useful for tests).
+You can pass arguments directly (useful for tests or programmatic usage).
 
 ```ts
 const config = arglet({ debug: false }, ["--debug"]);
@@ -193,7 +266,7 @@ arglet({ debug: false }, { debug: true });
 This logs:
 
 - ignored flags
-- inferred boolean behavior
+- boolean inference decisions
 - final resolved configuration
 
 ### Error handling
@@ -205,7 +278,7 @@ The following will throw errors:
 ```bash
 --age            # age is not boolean
 --no-name        # name is not boolean
---unknown        # key does not exist
+--port hello     # port expects number
 ```
 
 This keeps CLI behavior **predictable and safe**.
@@ -227,3 +300,17 @@ console.log(config);
 ```bash
 node cli.js --input=lib --watch
 ```
+
+## Philosophy
+
+Arglet is not a full argument parser.
+It assumes you already control argument shape.
+
+Its job is simple:
+
+- Treat your config as the schema
+- Merge CLI flags safely
+- Respect types
+- Fail loudly when misused
+
+Predictable input → predictable output.

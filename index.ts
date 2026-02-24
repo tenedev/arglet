@@ -103,48 +103,67 @@ export default function arglet<T extends Record<string, unknown>>(
   };
 
   /**
-   * Resolve a value from the configuration using dot-notation.
+   * Walks a dot-notation path and optionally returns the parent + last key.
    */
-  const resolveValueAtPath = (path: string): unknown => {
-    return path.split(".").reduce<unknown>((current, key) => {
-      if (current && typeof current === "object" && key in current) {
-        return (current as Record<string, unknown>)[key];
-      }
-      return undefined;
-    }, result);
-  };
-
-  /**
-   * Checks whether a given configuration path exists.
-   */
-  const hasConfigPath = (path: string): boolean =>
-    resolveValueAtPath(path) !== undefined;
-
-  /**
-   * Assigns a value to a nested configuration path.
-   */
-  const assignValueAtPath = (path: string, value: unknown): void => {
+  const walkPath = (
+    path: string,
+  ): {
+    exists: boolean;
+    value?: unknown;
+    parent?: Record<string, unknown>;
+    key?: string;
+  } => {
     const segments = path.split(".");
-    let currentNode: Record<string, unknown> = result;
+    let current: unknown = result;
 
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      if (!segment) return;
+      if (!segment) {
+        return { exists: false };
+      }
+
+      if (!current || typeof current !== "object" || !(segment in current)) {
+        return { exists: false };
+      }
 
       if (i === segments.length - 1) {
-        currentNode[segment] = value;
-        return;
+        return {
+          exists: true,
+          value: (current as Record<string, unknown>)[segment],
+          parent: current as Record<string, unknown>,
+          key: segment,
+        };
       }
 
-      if (
-        typeof currentNode[segment] !== "object" ||
-        currentNode[segment] === null
-      ) {
-        currentNode[segment] = {};
-      }
-
-      currentNode = currentNode[segment] as Record<string, unknown>;
+      current = (current as Record<string, unknown>)[segment];
     }
+
+    return { exists: false };
+  };
+
+  /**
+   * Resolve value at path.
+   */
+  const resolveValueAtPath = (path: string): unknown => {
+    return walkPath(path).value;
+  };
+
+  /**
+   * Checks whether config path exists.
+   */
+  const hasConfigPath = (path: string): boolean => {
+    return walkPath(path).exists;
+  };
+
+  /**
+   * Assigns value at existing config path.
+   */
+  const assignValueAtPath = (path: string, value: unknown): void => {
+    const walked = walkPath(path);
+
+    if (!walked.exists || !walked.parent || !walked.key) return;
+
+    walked.parent[walked.key] = value;
   };
 
   /**
@@ -152,12 +171,6 @@ export default function arglet<T extends Record<string, unknown>>(
    */
   const parseFlag = (flagName?: string, rawValue?: string): void => {
     if (!flagName) return;
-
-    if (rawValue === undefined) {
-      logger.debug(
-        `No explicit value provided for "${flagName}". Treating as a potential boolean flag.`,
-      );
-    }
 
     const isDisabledFlag = flagName.startsWith("no-");
     const normalizedPath = isDisabledFlag ? flagName.slice(3) : flagName;
@@ -172,6 +185,7 @@ export default function arglet<T extends Record<string, unknown>>(
 
     let parsedValue: unknown;
 
+    // Boolean
     if (isDisabledFlag) {
       if (existingValueType !== "boolean") {
         throw new Error(
@@ -184,12 +198,48 @@ export default function arglet<T extends Record<string, unknown>>(
         throw new Error(`--${normalizedPath} requires a value`);
       }
       parsedValue = true;
-    } else if (
+    }
+
+    // Array
+    else if (
+      Array.isArray(existingValue) &&
       typeof opts.arraySeparator === "string" &&
       rawValue.includes(opts.arraySeparator)
     ) {
-      parsedValue = rawValue.split(opts.arraySeparator);
-    } else {
+      const parts = rawValue.split(opts.arraySeparator);
+
+      const firstElement = existingValue[0];
+
+      if (typeof firstElement === "number") {
+        parsedValue = parts.map((part) => {
+          const n = Number(part);
+          if (Number.isNaN(n)) {
+            throw new Error(`--${normalizedPath} expects numeric values`);
+          }
+          return n;
+        });
+      } else {
+        // string[] or unknown[]
+        parsedValue = parts;
+      }
+    }
+
+    // Number
+    else if (existingValueType === "number") {
+      const n = Number(rawValue);
+      if (Number.isNaN(n)) {
+        throw new Error(`--${normalizedPath} expects a number`);
+      }
+      parsedValue = n;
+    }
+
+    // String
+    else if (existingValueType === "string") {
+      parsedValue = rawValue;
+    }
+
+    // Unknown / any / null fallback (respect original type)
+    else {
       parsedValue = rawValue;
     }
 
