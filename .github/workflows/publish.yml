@@ -15,8 +15,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Get latest semver tag (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          latest_tag=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n 1)
+
+          if [ -z "$latest_tag" ]; then
+            echo "No semver tags found"
+            exit 1
+          fi
+
+          echo "Switching to $latest_tag"
+          git checkout $latest_tag
       - uses: ./.github/actions/setup
-      - run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+      - name: Publish to NPM
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
           npm publish
-      - run: npx jsr publish
+      - name: Publish to JSR
+        run: npx jsr publish
