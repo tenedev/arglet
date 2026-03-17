@@ -1,12 +1,10 @@
-<div align="center">
-
 # Arglet
 
-_A tiny helper that lets your CLI args lead_
-
-</div>
+> A tiny helper that lets your CLI args lead
 
 [![ci](https://github.com/teneplaysofficial/arglet/actions/workflows/ci.yml/badge.svg)](https://github.com/teneplaysofficial/arglet)
+[![npm version](https://img.shields.io/npm/v/arglet.svg?logo=npm&color=brightgreen)](https://www.npmjs.com/package/arglet)
+[![Downloads](https://img.shields.io/npm/dt/arglet?logo=npm)](https://www.npmjs.com/package/arglet)
 [![codecov](https://codecov.io/gh/teneplaysofficial/arglet/graph/badge.svg?token=jPMx4VQVBo)](https://codecov.io/gh/teneplaysofficial/arglet)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/teneplaysofficial/arglet/main.svg)](https://results.pre-commit.ci/latest/github/teneplaysofficial/arglet/main)
 
